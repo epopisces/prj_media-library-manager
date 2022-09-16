@@ -1,3 +1,12 @@
+# Lucas Goals
+* Soundtracks
+* Oldies
+* Toddler Tunes
+* Bluegrass
+* Contemporary Christian
+* Musicals
+
+
 # extractPlaylists
 Extract playlists from MediaMonkey database from the command line.
 

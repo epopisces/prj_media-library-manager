@@ -9,4 +9,4 @@ class Playlist:
     @classmethod
     def from_db_row(cls, row):
         id, name, parent, _, auto, *_ = row
-        return cls(id, name, parent=parent, auto=auto)
+        return cls(id, name, parent=parent, auto=auto, query=_[-1])
