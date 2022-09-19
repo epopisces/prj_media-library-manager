@@ -19,6 +19,7 @@ def write_all(playlists,
     for pl in playlists.values():
         if pl.auto:
             print(f'Skipping AutoPlaylist "{pl.name}".', file=sys.stderr)
+            print('insert code to write auto playlists here', file=sys.stderr)
             continue
         if not pl.tracks:
             print(f'Skipping empty playlist "{pl.name}"', file=sys.stderr)
