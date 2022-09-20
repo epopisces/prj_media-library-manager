@@ -142,6 +142,7 @@ class MediaLibrary():
 
     def __init__(self, db):
         self.db_path = db
+        self.playlists = {}
         # maybe call another function here to help setup things
 
         return
@@ -151,8 +152,14 @@ class MediaLibrary():
         return
 
     def get_playlists(self):
-        self.playlists = database.get_all_playlists(self.db)
+        playlists = database.get_all_playlists(self.db)
+        for pl in playlists.values():
+            self.playlists[pl.name] = pl
         return
+
+    def create_static_playlist_from_autoplaylist(self, playlist_name):
+        tracks = []
+        self.playlists[playlist_name].tracks = tracks
 
     def close_database(self):
         self.db.close()
@@ -264,8 +271,11 @@ def entrypoint():
 
     mlib.connect_database()
     mlib.get_playlists()
-    playlists_list = [mlib.playlists[key].name for key in mlib.playlists.keys()]
-    playlists_to_sync = [playlist for playlist in playlists_list if playlist in mlib.playlists_of_interest]
+    playlists_to_sync = [playlist for playlist in mlib.playlists.keys() if playlist in mlib.playlists_of_interest]
+    for playlist in playlists_to_sync:
+        if mlib.playlists[playlist].auto:
+            mlib.create_static_playlist_from_autoplaylist(playlist)
+        
     mlib.close_database()
 
 if __name__ == "__main__":
