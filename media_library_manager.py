@@ -70,7 +70,8 @@ __version__ = 0.1
 
 #endregion
 from mm_extract_playlist.__main__ import main
-from mm_extract_playlist import database
+from mm_extract_playlist import database, utils
+from mm_extract_playlist.track import Track
 
 # main(r"C:\Users\epopisces\AppData\Roaming\MediaMonkey5\MM5.DB", "./output")
 
@@ -157,9 +158,35 @@ class MediaLibrary():
             self.playlists[pl.name] = pl
         return
 
-    def create_static_playlist_from_autoplaylist(self, playlist_name):
-        tracks = []
-        self.playlists[playlist_name].tracks = tracks
+    def get_static_playlist_from_autoplaylist(self, playlist_name):
+        "Get dict of tracks grouped by playlist id"
+        drive_map = database.get_drive_letters(self.db)
+        playlist_id = self.playlists[playlist_name].id
+        tracks = self.playlists[playlist_name].tracks
+        query = self.get_query_from_autoplaylist(playlist_name)
+        cur = self.db.cursor()
+        cur.execute(query)
+        pl_tracks = []
+        for idx, row in enumerate(cur):
+            # resolve drive letter and pre-pend to path
+            path, media = row[1], row[-1]
+            drive = drive_map[media]
+            path = drive + path
+            row = list(row[:-1])
+            row[1] = path
+            row.insert(2, playlist_id)
+            row.append(idx)
+            pl_tracks.append(Track(*row))
+        self.playlists[playlist_name].tracks = pl_tracks
+        return
+
+    def get_query_from_autoplaylist(self, playlist_name):
+        query_orig = json.loads(self.playlists[playlist_name].query)
+        query_sql = 'SELECT SongTitle, SongPath, Custom1, Custom2, Custom3, Custom4, IDMedia FROM Songs WHERE '
+        for field_filter in query_orig['conditions']['data']:
+            query_sql += f"{field_filter['field']} LIKE '%{field_filter['value']}%' AND "
+
+        return query_sql[:-5] #? strip off the last AND
 
     def close_database(self):
         self.db.close()
@@ -274,8 +301,8 @@ def entrypoint():
     playlists_to_sync = [playlist for playlist in mlib.playlists.keys() if playlist in mlib.playlists_of_interest]
     for playlist in playlists_to_sync:
         if mlib.playlists[playlist].auto:
-            mlib.create_static_playlist_from_autoplaylist(playlist)
-        
+            mlib.get_static_playlist_from_autoplaylist(playlist)
+    print()
     mlib.close_database()
 
 if __name__ == "__main__":

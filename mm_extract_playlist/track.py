@@ -2,7 +2,7 @@ from pathlib import PureWindowsPath
 
 
 class Track:
-    def __init__(self, title, path, playlist_id, index):
+    def __init__(self, title, path, playlist_id, category, association, year, mood, index):
         self.title, self.path = title, PureWindowsPath(path)
         self.playlist_id, self.index = playlist_id, index
 

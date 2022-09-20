@@ -23,7 +23,7 @@ def get_all_playlist_tracks(db):
     "Get dict of tracks grouped by playlist id"
     drive_map = get_drive_letters(db)
     cur = db.cursor()
-    cur.execute('SELECT SongTitle, SongPath, IDPlaylist, SongOrder, IDMedia '
+    cur.execute('SELECT SongTitle, SongPath, IDPlaylist, SongOrder, Custom1, Custom2, Custom3, Custom4, IDMedia '
                 'FROM PlaylistSongs INNER JOIN Songs '
                 'ON PlaylistSongs.IDSong = Songs.ID '
                 'ORDER BY SongOrder')
