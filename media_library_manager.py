@@ -68,18 +68,22 @@ __version__ = 0.1
 #* for each autoplaylist, create a collection in Plex with corresponding logic (association = country, playlist = mood, etc)
 #* update tags in plex songs with the matching custom metadata from MediaMonkey
 
+# TODO 
+# - modify the m3u code to work for library object/autoplaylists
+# - Aggression playlist (and any others with an 'or' match condition instead of an 'and') will need to be handled differently
+
 #endregion
 from mm_extract_playlist.__main__ import main
 from mm_extract_playlist import database, utils
 from mm_extract_playlist.track import Track
+from plexapi import playlist
+from plexapi.server import PlexServer
 
 # main(r"C:\Users\epopisces\AppData\Roaming\MediaMonkey5\MM5.DB", "./output")
 
-import logging,  json, os, time #, requests
+import logging, json #, os, time, requests
 # from requests.exceptions import RequestException
 # import toml # used to parse config file
-
-#from tools.MediaLibrary import MediaLibrary_api as tool
 
 class MediaLibraryException(Exception):
     pass
@@ -134,6 +138,7 @@ class MediaLibrary():
         'Aggression',
         'Ambient',
         'Christus Rex',
+        'Instrumental',
         'Singalong',
         'Slumber',
         'Sarah',
@@ -162,7 +167,7 @@ class MediaLibrary():
         "Get dict of tracks grouped by playlist id"
         drive_map = database.get_drive_letters(self.db)
         playlist_id = self.playlists[playlist_name].id
-        tracks = self.playlists[playlist_name].tracks
+        # tracks = self.playlists[playlist_name].tracks
         query = self.get_query_from_autoplaylist(playlist_name)
         cur = self.db.cursor()
         cur.execute(query)
@@ -184,7 +189,22 @@ class MediaLibrary():
         query_orig = json.loads(self.playlists[playlist_name].query)
         query_sql = 'SELECT SongTitle, SongPath, Custom1, Custom2, Custom3, Custom4, IDMedia FROM Songs WHERE '
         for field_filter in query_orig['conditions']['data']:
-            query_sql += f"{field_filter['field']} LIKE '%{field_filter['value']}%' AND "
+            if field_filter['field'] == 'extension':
+                continue
+            elif field_filter['operator'] == 'contains':
+                q_operator = 'LIKE'
+                q_operand = field_filter['value']
+                query_sql += f"{field_filter['field']} {q_operator} '%{q_operand}%' AND "
+            elif field_filter['operator'] == '!=' or field_filter['operator'] == '>=':
+                q_operator = field_filter['operator'] 
+                q_operand = field_filter['value'].split(',')[0]
+                query_sql += f"{field_filter['field']} {q_operator} {q_operand} AND "
+            elif field_filter['operator'] == 'does not contain':
+                q_operator = 'NOT LIKE'
+                q_operand = field_filter['value']
+                query_sql += f"{field_filter['field']} {q_operator} '%{q_operand}%' AND "
+            else:
+                print()
 
         return query_sql[:-5] #? strip off the last AND
 
@@ -273,7 +293,7 @@ class MediaLibrary():
         return all_data      
 
 def entrypoint():
-    import argparse, os
+    import argparse
     #? Remove this section if not accepting arguments from CLI
     #region #####-   Argparse                                                ##########
     example = (r'Example usage: '
@@ -293,17 +313,44 @@ def entrypoint():
     # args = parser.parse_args()
     #endregion
 
-    # Uncomment for testing setup   
-    mlib = MediaLibrary(db=r'C:\Users\epopisces\AppData\Roaming\MediaMonkey5\MM5.DB')
+    get_from_mediamonkey = True
+    submit_to_plex = False
 
-    mlib.connect_database()
-    mlib.get_playlists()
-    playlists_to_sync = [playlist for playlist in mlib.playlists.keys() if playlist in mlib.playlists_of_interest]
+    # Uncomment for testing setup   
+    if get_from_mediamonkey == True:
+        mlib = MediaLibrary(db=r'C:\Users\epopisces\AppData\Roaming\MediaMonkey5\MM5.DB')
+
+        mlib.connect_database()
+        mlib.get_playlists()
+        playlists_to_sync = [playlist for playlist in mlib.playlists.keys() if playlist in mlib.playlists_of_interest]
+        for playlist in playlists_to_sync:
+            if mlib.playlists[playlist].auto:
+                mlib.get_static_playlist_from_autoplaylist(playlist)
+        
+        mlib.close_database()
+
+    # TODO Submit to plex
+    plex = PlexServer(baseurl='http://10.1.10.11:32400', token='duEp3jG_26z95GZVMdaq') # server/token in config file
+    
     for playlist in playlists_to_sync:
-        if mlib.playlists[playlist].auto:
-            mlib.get_static_playlist_from_autoplaylist(playlist)
-    print()
-    mlib.close_database()
+        for track in mlib.playlists[playlist].tracks:
+            print(track)
+    if submit_to_plex == True:
+        plex = PlexServer(baseurl='http://10.1.10.11:32400', token='duEp3jG_26z95GZVMdaq') # server/token in config file
+        
+        for playlist in playlists_to_sync:
+            for track in mlib.playlists[playlist].tracks:
+                print(track)
+
+        # TODO develop once method of populating items for a given playlist is determined
+        for playlist in playlists_to_sync:
+            if playlist in plex.playlist():
+                continue
+            else:
+                playlist_items = mlib.playlists[playlist].tracks
+                plex.createPlaylist(playlist, items=playlist_items)
+        for playlist in plex.playlists():
+            print(playlist.title)
 
 if __name__ == "__main__":
     entrypoint()
