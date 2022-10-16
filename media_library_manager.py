@@ -335,6 +335,7 @@ def entrypoint():
     for playlist in playlists_to_sync:
         for track in mlib.playlists[playlist].tracks:
             print(track)
+            
     if submit_to_plex == True:
         plex = PlexServer(baseurl='http://10.1.10.11:32400', token='duEp3jG_26z95GZVMdaq') # server/token in config file
         
