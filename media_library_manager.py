@@ -8,6 +8,13 @@ Title - One line blurb
 
 Paragraph describing
 
+Prerequisites:
+* expects 
+
+python -m venv -.venv
+./.venv/Scripts/activate
+python -m pip install -r requirements.txt
+
 Usage:
     ./projectmain.py arg1 [optionalarg2]
 
